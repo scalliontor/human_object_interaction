@@ -1,18 +1,13 @@
 """
-Full 4-Stream HOI Model following the architecture diagram EXACTLY:
+Full 4-Stream HOI Model V2:
 
-  Stream 1: Hand Pose → GCN (MediaPipe right hand 21 joints + velocity → 384-dim)
-  Stream 2: Object Crop 224×224 → DINOv3 ViT-S/16 → CLS 384-dim
-  Stream 3: Context Full Frame 224×224 → DINOv3 ViT-S/16 (shared backbone) → CLS 384-dim
-  Stream 4: Spatial 7-dim → Bottleneck → 384-dim
-  → Pose-Query Cross-Attention Fusion (Q=h_pose, KV=[h_obj, h_ctx, h_spatial])
+  Stream 1: Body Pose → GCN (YOLO Pose 17 COCO joints + velocity → 384-dim)
+  Stream 2: Object Crop 224×224 → DINOv3 ViT-S/16 (Grounding DINO bbox)
+  Stream 3: Context Full Frame 224×224 → DINOv3 ViT-S/16 (shared backbone)
+  Stream 4: Spatial 12-dim → Bottleneck → 384-dim (person-object relative)
+  → Pose-Query Cross-Attention Fusion
   → Temporal Attention Encoder (3 layers, CLS token)
   → Classification Head + Anticipation Head
-  → Multi-Task Loss: BCE(cls) + 0.3 × BCE(antic)
-
-Changes from original diagram:
-  - YOLO Pose (17 body joints) → MediaPipe right hand (21 landmarks + velocity)
-  - Object bbox not in annotations → use hand-centric crop as object region
 """
 import math
 import torch
@@ -21,7 +16,7 @@ import torch.nn.functional as F
 from typing import Optional, Tuple, Dict
 import timm
 
-from .config import ModelConfig, HAND_SKELETON_EDGES
+from .config import ModelConfig, BODY_SKELETON_EDGES
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -51,25 +46,24 @@ class GraphConvLayer(nn.Module):
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# Stream 1: Hand Graph Encoder (HumanGraphEncoder in diagram)
-# Replaces: Pose GCN with 17 body joints → 21 right-hand landmarks + velocity
+# Stream 1: Body Pose Graph Encoder (YOLO Pose 17 COCO keypoints)
 # ════════════════════════════════════════════════════════════════════════════
 
-class HandGraphEncoder(nn.Module):
+class PoseGraphEncoder(nn.Module):
     """
-    2-layer Graph Conv + LayerNorm on 21-node hand skeleton.
-    Input: [B, T, 21, 6] (x,y,z + vx,vy,vz)
-    Output: h_hand [B, T, 384]
+    2-layer Graph Conv + LayerNorm on 17-node COCO body skeleton.
+    Input: [B, T, 17, 6] (x,y,conf + vx,vy,vconf)
+    Output: h_pose [B, T, 384]
     """
 
     def __init__(self, cfg: ModelConfig):
         super().__init__()
-        num_nodes = cfg.num_landmarks  # 21
+        num_nodes = cfg.num_joints     # 17
         input_dim = cfg.input_dim      # 6
         d = cfg.d_model                # 384
 
         adj = torch.zeros(num_nodes, num_nodes)
-        for i, j in HAND_SKELETON_EDGES:
+        for i, j in BODY_SKELETON_EDGES:
             adj[i, j] = 1.0
             adj[j, i] = 1.0
 
@@ -442,7 +436,7 @@ class HOIModel(nn.Module):
         self.cfg = cfg
 
         # Stream 1: Hand Pose GCN
-        self.hand_encoder = HandGraphEncoder(cfg)
+        self.pose_encoder = PoseGraphEncoder(cfg)
         self.pose_fallback = PoseFallback(cfg.d_model)
 
         # Stream 2 & 3: DINOv3 ViT-S/16 (SHARED backbone)
@@ -497,9 +491,9 @@ class HOIModel(nn.Module):
         B, T = hand_features.shape[:2]
         d = self.cfg.d_model
 
-        # ── Stream 1: Hand GCN ──
-        h_hand = self.hand_encoder(hand_features)         # [B, T, d]
-        h_hand = self.pose_fallback(h_hand, hand_confidence)
+        # ── Stream 1: Body Pose GCN ──
+        h_pose = self.pose_encoder(hand_features)         # [B, T, d]
+        h_pose = self.pose_fallback(h_pose, hand_confidence)
 
         # ── Stream 2: Object Crop → DINOv3 → proj ──
         obj_flat = obj_crops.reshape(B * T, 3, 224, 224)
@@ -518,7 +512,7 @@ class HOIModel(nn.Module):
         # ── Cross-Attention Fusion ──
         # Q = h_hand (pose, fallback-blended)
         # KV = [h_obj (or mask token), h_ctx, h_spatial]
-        fused = self.cross_attention(h_hand, h_obj, h_ctx, h_spatial)  # [B, T, d]
+        fused = self.cross_attention(h_pose, h_obj, h_ctx, h_spatial)  # [B, T, d]
 
         # ── Temporal Attention Encoder ──
         cls_feat, frame_feat = self.temporal_encoder(fused)  # [B, d], [B, T, d]

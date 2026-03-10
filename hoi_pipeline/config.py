@@ -1,12 +1,12 @@
 """
-Configuration for the HOI Training Pipeline.
+Configuration for the HOI Training Pipeline V2.
 All hyperparameters, paths, and constants are defined here.
 
-Architecture follows the diagram exactly:
-  Stream 1: Hand Pose → GCN (MediaPipe right hand, 21 joints + velocity)
-  Stream 2: Object Crop 224×224 → DINOv3 ViT-S/16 (shared backbone)
+Architecture V2:
+  Stream 1: Body Pose → GCN (YOLO Pose, 17 COCO joints + velocity)
+  Stream 2: Object Crop 224×224 → DINOv3 ViT-S/16 (Grounding DINO bbox)
   Stream 3: Context Full Frame 224×224 → DINOv3 ViT-S/16 (shared backbone)
-  Stream 4: Spatial Features 7-dim → Spatial Bottleneck
+  Stream 4: Spatial Features 12-dim → Spatial Bottleneck (person-object relative)
   → Pose-Query Cross-Attention Fusion
   → Temporal Attention Encoder (3 layers)
   → Classification Head + Anticipation Head
@@ -14,7 +14,7 @@ Architecture follows the diagram exactly:
 """
 import os
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Dict
 
 
 @dataclass
@@ -32,42 +32,39 @@ class PathConfig:
 
     @property
     def preprocessed_dir(self) -> str:
-        return os.path.join(self.dataset_root, "preprocessed")
+        return os.path.join(self.dataset_root, "preprocessed_v2")
 
     @property
     def checkpoint_dir(self) -> str:
-        return os.path.join(self.dataset_root, "checkpoints")
+        return os.path.join(self.dataset_root, "checkpoints_v2")
 
 
 @dataclass
 class ModelConfig:
-    """Model architecture configuration — matches diagram exactly."""
+    """Model architecture configuration — V2 with YOLO Pose + Grounding DINO."""
     # ── DINOv3 ViT-S/16 backbone ──
     backbone_name: str = "vit_small_patch16_dinov3"
-    backbone_frozen: bool = True        # Freeze backbone, use as feature extractor
-    backbone_dim: int = 384             # ViT-S embedding dim
-    num_register_tokens: int = 4        # DINOv3 register tokens
-    num_patch_tokens: int = 196         # 224/16 = 14, 14×14 = 196 patches
-    # CLS token output = 384-dim
+    backbone_frozen: bool = True
+    backbone_dim: int = 384
 
-    # ── Hand landmarks (Stream 1: replaces YOLO Pose) ──
-    num_landmarks: int = 21             # MediaPipe right hand
-    landmark_dim: int = 3               # x, y, z per landmark
-    use_velocity: bool = True           # Add velocity features
+    # ── Body Pose (Stream 1: YOLO Pose 17 COCO keypoints) ──
+    num_joints: int = 17                # COCO body keypoints
+    joint_dim: int = 3                  # x, y, confidence per joint
+    use_velocity: bool = True
     input_dim: int = 6                  # position (3) + velocity (3)
 
     # ── Model dimensions ──
-    d_model: int = 384                  # Matches backbone_dim
-    n_heads: int = 6                    # Temporal attention heads
-    n_cross_heads: int = 8             # Cross-attention fusion heads
-    n_temporal_layers: int = 3          # Temporal attention encoder layers
+    d_model: int = 384
+    n_heads: int = 6
+    n_cross_heads: int = 8
+    n_temporal_layers: int = 3
     ffn_dim: int = 1536                 # 4× d_model
-    dropout: float = 0.3               # Dropout (higher for small dataset)
-    spatial_dropout: float = 0.3        # 30% randomly zeros spatial features
+    dropout: float = 0.3
+    spatial_dropout: float = 0.3
 
-    # ── Spatial features (Stream 4) ──
-    spatial_dim: int = 7                # dx, dy, log(w_ratio), log(h_ratio), IoU, distance, angle
-    spatial_hidden: int = 64            # Bottleneck hidden dim
+    # ── Spatial features (Stream 4: person-object relative) ──
+    spatial_dim: int = 12               # person-object relative features
+    spatial_hidden: int = 64
 
     # ── GCN (Stream 1) ──
     gcn_layers: int = 2
@@ -80,10 +77,10 @@ class ModelConfig:
 class TrainingConfig:
     """Training configuration."""
     # ── Temporal chunking ──
-    chunk_length: int = 8               # T=8 frames per chunk
-    chunk_stride: int = 4               # Sliding window stride
-    frame_stride: int = 8              # Sample every 8th frame (8 × 8 = 64 frames ≈ 2.1s @30fps)
-    anticipation_offset: int = 30       # 1 second ahead at 30fps
+    chunk_length: int = 8
+    chunk_stride: int = 4
+    frame_stride: int = 8
+    anticipation_offset: int = 30
 
     # ── Training ──
     batch_size: int = 8
@@ -107,35 +104,55 @@ class TrainingConfig:
     min_delta: float = 1e-4
 
     # ── Image preprocessing ──
-    image_size: int = 224               # Input size for DINOv3
+    image_size: int = 224
 
     # ── Misc ──
     num_workers: int = 4
     seed: int = 42
-    val_ratio: float = 0.2              # 80/20 train/val split
+    val_ratio: float = 0.2
     use_amp: bool = True
     preferred_camera: str = "cam_832112070255"
+
+    # ── YOLO Pose ──
+    yolo_model: str = "yolo11n-pose.pt"
+    yolo_conf: float = 0.3              # Person detection confidence
+
+    # ── Grounding DINO ──
+    gdino_model: str = "IDEA-Research/grounding-dino-tiny"
+    gdino_box_threshold: float = 0.25
+    gdino_text_threshold: float = 0.2
 
 
 # Predicate names matching annotation format
 PREDICATES = ["commit", "hesitate", "abort", "waiting"]
 PREDICATE_TO_IDX = {p: i for i, p in enumerate(PREDICATES)}
 
-# MediaPipe Hand Skeleton — adjacency list for GCN
-# Wrist (0) is the hub connecting to each finger base
-HAND_SKELETON_EDGES = [
-    # Thumb
-    (0, 1), (1, 2), (2, 3), (3, 4),
-    # Index
-    (0, 5), (5, 6), (6, 7), (7, 8),
-    # Middle
-    (0, 9), (9, 10), (10, 11), (11, 12),
-    # Ring
-    (0, 13), (13, 14), (14, 15), (15, 16),
-    # Pinky
-    (0, 17), (17, 18), (18, 19), (19, 20),
-    # Inter-finger connections (palm)
-    (5, 9), (9, 13), (13, 17),
+# Object text prompts for Grounding DINO detection
+OBJECT_PROMPTS = {
+    "bottle2": "The cylindrical object held by the hand, featuring a black cap, a silver metallic body, and a teal base",
+    "bottle1": "The light blue, cylindrical plastic bottle",
+    "box": "The rectangular red and white snack box",
+}
+
+# COCO Body Skeleton — 17 keypoints adjacency for GCN
+# 0:nose  1:L_eye  2:R_eye  3:L_ear  4:R_ear  5:L_shoulder  6:R_shoulder
+# 7:L_elbow  8:R_elbow  9:L_wrist  10:R_wrist  11:L_hip  12:R_hip
+# 13:L_knee  14:R_knee  15:L_ankle  16:R_ankle
+BODY_SKELETON_EDGES = [
+    # Head
+    (0, 1), (0, 2), (1, 3), (2, 4),
+    # Torso
+    (5, 6), (5, 11), (6, 12), (11, 12),
+    # Left arm
+    (5, 7), (7, 9),
+    # Right arm
+    (6, 8), (8, 10),
+    # Left leg
+    (11, 13), (13, 15),
+    # Right leg
+    (12, 14), (14, 16),
+    # Shoulder-nose
+    (0, 5), (0, 6),
 ]
 
 

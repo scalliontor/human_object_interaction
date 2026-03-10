@@ -1,14 +1,14 @@
 """
-Dataset for the HOI Training Pipeline.
-Loads preprocessed MediaPipe hand data + RGB frames for all 4 streams.
+Dataset V2 for the HOI Training Pipeline.
+Loads YOLO Pose + Grounding DINO preprocessed data + RGB frames for all 4 streams.
 
 Returns per chunk:
-  hand_features:    [T, 21, 6]       — landmarks + velocity
-  hand_confidence:  [T]              — detection confidence
-  obj_crops:        [T, 3, 224, 224] — hand-centric object crops
+  hand_features:    [T, 17, 6]       — body pose keypoints + velocity
+  hand_confidence:  [T]              — person detection confidence
+  obj_crops:        [T, 3, 224, 224] — object crops (from Grounding DINO bbox)
   ctx_frames:       [T, 3, 224, 224] — full context frames (resized)
-  obj_visible:      [T]              — hand detected = object likely visible
-  spatial_features: [T, 7]           — spatial vector
+  obj_visible:      [T]              — object detected flag
+  spatial_features: [T, 12]          — person-object relative spatial features
   cls_labels:       [4]              — chunk-level classification
   antic_labels:     [4]              — anticipation labels
 """
@@ -31,8 +31,8 @@ from .config import (
 
 class HOIChunkDataset(Dataset):
     """
-    Full 4-stream dataset. Loads preprocessed hand landmarks, computes spatial
-    features, and reads RGB frames for DINOv3 visual streams.
+    Full 4-stream dataset V2. Loads YOLO Pose body keypoints, Grounding DINO
+    object bboxes, and reads RGB frames for DINOv3 visual streams.
     """
 
     def __init__(
@@ -62,7 +62,7 @@ class HOIChunkDataset(Dataset):
 
         # Image transforms (DINOv3 expects ImageNet-normalized 224×224)
         self.img_transform = transforms.Compose([
-            transforms.ToTensor(),  # HWC uint8 → CHW float [0,1]
+            transforms.ToTensor(),
             transforms.Normalize(
                 mean=[0.485, 0.456, 0.406],
                 std=[0.229, 0.224, 0.225],
@@ -137,10 +137,8 @@ class HOIChunkDataset(Dataset):
             relation_instances = anno.get("relation_instances", [])
             n_frames = len(relation_instances)
 
-            # We need at least chunk_length * frame_stride frames
             min_frames_needed = self.chunk_length * self.frame_stride
             if n_frames < min_frames_needed:
-                # Fallback: use chunk_length frames if enough
                 if n_frames < self.chunk_length:
                     continue
 
@@ -164,19 +162,17 @@ class HOIChunkDataset(Dataset):
             else:
                 antic_labels = frame_labels.copy()
 
-            # Generate temporal chunks with frame_stride
-            # Each chunk samples T frames spaced by frame_stride
+            # Generate temporal chunks
             max_start = n_frames - self.chunk_length * self.frame_stride
             if max_start < 0:
-                # Not enough frames for strided sampling, use stride=1
                 effective_stride = 1
                 max_start = n_frames - self.chunk_length
             else:
                 effective_stride = self.frame_stride
 
-            # Load confidence from preprocessed data for chunk filtering
+            # Load person confidence for chunk filtering
             npz_data = np.load(npz_path)
-            all_confidence = npz_data["confidence"]  # [total_T]
+            all_person_conf = npz_data["person_conf"]
 
             for start in range(0, max(max_start, 0) + 1, self.chunk_stride * effective_stride):
                 frame_indices = [
@@ -184,18 +180,14 @@ class HOIChunkDataset(Dataset):
                     for i in range(self.chunk_length)
                 ]
 
-                # Filter: skip chunks with NO hand detected AND no active annotation
-                # Check if any frame in chunk has hand detected
-                chunk_conf = all_confidence[frame_indices] if max(frame_indices) < len(all_confidence) else np.zeros(len(frame_indices))
-                has_hand = np.any(chunk_conf > 0.5)
+                # Filter: skip chunks with NO person detected AND no active annotation
+                chunk_conf = all_person_conf[frame_indices] if max(frame_indices) < len(all_person_conf) else np.zeros(len(frame_indices))
+                has_person = np.any(chunk_conf > 0.3)
 
-                # Check if any frame has non-waiting annotation
-                chunk_labels = frame_labels[frame_indices]  # [T, 4]
-                # Active = any of commit/hesitate/abort (not just waiting)
-                has_active_annotation = np.any(chunk_labels[:, :3] > 0)  # commit/hesitate/abort
+                chunk_labels = frame_labels[frame_indices]
+                has_active_annotation = np.any(chunk_labels[:, :3] > 0)
 
-                # Skip if NO hand detected AND no active annotation
-                if not has_hand and not has_active_annotation:
+                if not has_person and not has_active_annotation:
                     continue
 
                 self.samples.append({
@@ -215,18 +207,14 @@ class HOIChunkDataset(Dataset):
         self,
         video_path: str,
         frame_indices: List[int],
-    ) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Read specific frames from video.
-        Returns raw RGB frames [T, H, W, 3] as uint8.
-        """
+    ) -> List[np.ndarray]:
+        """Read specific frames from video. Returns list of RGB frames."""
         cap = cv2.VideoCapture(video_path)
         frames = []
         for idx in frame_indices:
             cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
             ret, frame = cap.read()
             if not ret:
-                # Fallback: black frame
                 h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)) or 480
                 w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)) or 640
                 frame = np.zeros((h, w, 3), dtype=np.uint8)
@@ -239,25 +227,18 @@ class HOIChunkDataset(Dataset):
     def _crop_and_resize(
         self, frame: np.ndarray, bbox: np.ndarray, size: int
     ) -> np.ndarray:
-        """
-        Crop frame using normalized bbox [x1, y1, x2, y2] and resize to size×size.
-        Returns [size, size, 3] uint8.
-        """
+        """Crop frame using normalized bbox [x1, y1, x2, y2] and resize."""
         h, w = frame.shape[:2]
         x1 = int(bbox[0] * w)
         y1 = int(bbox[1] * h)
         x2 = int(bbox[2] * w)
         y2 = int(bbox[3] * h)
-
-        # Clamp
         x1, y1 = max(0, x1), max(0, y1)
         x2, y2 = min(w, x2), min(h, y2)
-
         if x2 <= x1 or y2 <= y1:
-            crop = frame  # Fallback to full frame
+            crop = frame
         else:
             crop = frame[y1:y2, x1:x2]
-
         return cv2.resize(crop, (size, size), interpolation=cv2.INTER_LINEAR)
 
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
@@ -265,24 +246,30 @@ class HOIChunkDataset(Dataset):
         frame_indices = sample["frame_indices"]
         T = self.chunk_length
 
-        # ── Load preprocessed hand data ──
+        # ── Load preprocessed data ──
         data = np.load(sample["npz_path"])
-        landmarks = data["landmarks"]    # [total_T, 21, 3]
-        velocity = data["velocity"]      # [total_T, 21, 3]
-        confidence = data["confidence"]  # [total_T]
-        hand_bbox = data["hand_bbox"]    # [total_T, 4]
+        pose_landmarks = data["pose_landmarks"]    # [total_T, 17, 3]
+        pose_velocity = data["pose_velocity"]      # [total_T, 17, 3]
+        person_conf = data["person_conf"]           # [total_T]
+        person_bbox = data["person_bbox"]           # [total_T, 4]
+        object_bbox = data["object_bbox"]           # [total_T, 4]
+        object_conf = data["object_conf"]           # [total_T]
 
-        # Index into the chunk frame_indices
-        lm_chunk = landmarks[frame_indices]        # [T, 21, 3]
-        vel_chunk = velocity[frame_indices]         # [T, 21, 3]
-        conf_chunk = confidence[frame_indices]      # [T]
-        bbox_chunk = hand_bbox[frame_indices]       # [T, 4]
+        # Index into chunk
+        lm_chunk = pose_landmarks[frame_indices]    # [T, 17, 3]
+        vel_chunk = pose_velocity[frame_indices]    # [T, 17, 3]
+        pconf_chunk = person_conf[frame_indices]    # [T]
+        pbbox_chunk = person_bbox[frame_indices]    # [T, 4]
+        obbox_chunk = object_bbox[frame_indices]    # [T, 4]
+        oconf_chunk = object_conf[frame_indices]    # [T]
 
-        # Concatenate position + velocity → [T, 21, 6]
+        # Concatenate position + velocity → [T, 17, 6]
         hand_features = np.concatenate([lm_chunk, vel_chunk], axis=-1)
 
-        # ── Compute spatial features [T, 7] ──
-        spatial = self._compute_spatial_features(lm_chunk, vel_chunk, conf_chunk)
+        # ── Compute spatial features [T, 12] ──
+        spatial = self._compute_spatial_features(
+            pbbox_chunk, obbox_chunk, pconf_chunk, oconf_chunk
+        )
 
         # ── Read RGB frames ──
         raw_frames = self._read_video_frames(sample["video_path"], frame_indices)
@@ -294,37 +281,32 @@ class HOIChunkDataset(Dataset):
 
         for t in range(T):
             frame = raw_frames[t]
-
-            # Context: full frame resized to 224×224
             ctx = cv2.resize(frame, (self.image_size, self.image_size),
                              interpolation=cv2.INTER_LINEAR)
             ctx_frames.append(self.img_transform(ctx))
 
-            # Object crop: hand-centric crop
-            if conf_chunk[t] > 0.5:
-                crop = self._crop_and_resize(frame, bbox_chunk[t], self.image_size)
+            # Object crop from Grounding DINO bbox
+            if oconf_chunk[t] > 0.2:
+                crop = self._crop_and_resize(frame, obbox_chunk[t], self.image_size)
                 obj_crops.append(self.img_transform(crop))
                 obj_visible.append(1.0)
             else:
-                # No hand → use full frame as fallback, mark as not visible
                 obj_crops.append(self.img_transform(ctx.copy()))
                 obj_visible.append(0.0)
 
-        obj_crops = torch.stack(obj_crops)       # [T, 3, 224, 224]
-        ctx_frames = torch.stack(ctx_frames)     # [T, 3, 224, 224]
-        obj_visible = torch.tensor(obj_visible, dtype=torch.float32)  # [T]
+        obj_crops = torch.stack(obj_crops)
+        ctx_frames = torch.stack(ctx_frames)
+        obj_visible = torch.tensor(obj_visible, dtype=torch.float32)
 
         # ── Labels ──
-        labels = sample["frame_labels"][frame_indices]       # [T, 4]
-        antic_labels = sample["antic_labels"][frame_indices]  # [T, 4]
-
-        # Aggregate chunk-level: binary OR over T frames
+        labels = sample["frame_labels"][frame_indices]
+        antic_labels = sample["antic_labels"][frame_indices]
         chunk_cls = (labels.sum(axis=0) > 0).astype(np.float32)
         chunk_antic = (antic_labels.sum(axis=0) > 0).astype(np.float32)
 
         return {
             "hand_features": torch.from_numpy(hand_features).float(),
-            "hand_confidence": torch.from_numpy(conf_chunk).float(),
+            "hand_confidence": torch.from_numpy(pconf_chunk).float(),
             "obj_crops": obj_crops,
             "ctx_frames": ctx_frames,
             "obj_visible": obj_visible,
@@ -335,48 +317,62 @@ class HOIChunkDataset(Dataset):
 
     def _compute_spatial_features(
         self,
-        landmarks: np.ndarray,   # [T, 21, 3]
-        velocity: np.ndarray,    # [T, 21, 3]
-        confidence: np.ndarray,  # [T]
+        person_bbox: np.ndarray,   # [T, 4] x1,y1,x2,y2 normalized
+        object_bbox: np.ndarray,   # [T, 4]
+        person_conf: np.ndarray,   # [T]
+        object_conf: np.ndarray,   # [T]
     ) -> np.ndarray:
         """
-        Compute 7-dim spatial feature vector per frame.
-        Matches diagram: dx, dy, log(w_ratio), log(h_ratio), IoU, distance, angle
-        Adapted for hand: dx/dy = hand center offset from frame center,
-        log ratios = hand spread, IoU approximated as hand area ratio,
-        distance and angle from frame center.
+        Compute 12-dim person-object relative spatial features per frame.
+        [dx, dy, log_w_ratio, log_h_ratio, log_area_ratio, IoU,
+         distance, angle, person_h, person_w, obj_h, obj_w]
         """
-        T = landmarks.shape[0]
-        spatial = np.zeros((T, 7), dtype=np.float32)
+        T = person_bbox.shape[0]
+        spatial = np.zeros((T, 12), dtype=np.float32)
 
         for t in range(T):
-            if confidence[t] < 0.5:
+            if person_conf[t] < 0.3 or object_conf[t] < 0.2:
                 continue
 
-            lm = landmarks[t]
-            vel = velocity[t]
+            pb = person_bbox[t]
+            ob = object_bbox[t]
 
-            # Hand center offset from frame center (0.5, 0.5)
-            cx = lm[:, 0].mean()
-            cy = lm[:, 1].mean()
-            dx = cx - 0.5
-            dy = cy - 0.5
+            # Person center and size
+            pcx = (pb[0] + pb[2]) / 2
+            pcy = (pb[1] + pb[3]) / 2
+            pw = max(pb[2] - pb[0], 1e-6)
+            ph = max(pb[3] - pb[1], 1e-6)
 
-            # Hand spread (proxy for w/h ratio)
-            x_range = max(lm[:, 0].max() - lm[:, 0].min(), 1e-6)
-            y_range = max(lm[:, 1].max() - lm[:, 1].min(), 1e-6)
-            log_w_ratio = np.log(x_range + 1e-6)
-            log_h_ratio = np.log(y_range + 1e-6)
+            # Object center and size
+            ocx = (ob[0] + ob[2]) / 2
+            ocy = (ob[1] + ob[3]) / 2
+            ow = max(ob[2] - ob[0], 1e-6)
+            oh = max(ob[3] - ob[1], 1e-6)
 
-            # Hand area relative to frame (IoU proxy)
-            hand_area = x_range * y_range
-            iou_proxy = min(hand_area, 1.0)
+            # Relative displacement
+            dx = ocx - pcx
+            dy = ocy - pcy
 
-            # Distance and angle from frame center
+            # Size ratios (log scale)
+            log_w_ratio = np.log(ow / pw + 1e-6)
+            log_h_ratio = np.log(oh / ph + 1e-6)
+            log_area_ratio = np.log((ow * oh) / (pw * ph) + 1e-6)
+
+            # IoU
+            ix1 = max(pb[0], ob[0])
+            iy1 = max(pb[1], ob[1])
+            ix2 = min(pb[2], ob[2])
+            iy2 = min(pb[3], ob[3])
+            inter = max(0, ix2 - ix1) * max(0, iy2 - iy1)
+            union = pw * ph + ow * oh - inter
+            iou = inter / max(union, 1e-6)
+
+            # Distance and angle
             distance = np.sqrt(dx ** 2 + dy ** 2)
             angle = np.arctan2(dy, dx)
 
-            spatial[t] = [dx, dy, log_w_ratio, log_h_ratio, iou_proxy, distance, angle]
+            spatial[t] = [dx, dy, log_w_ratio, log_h_ratio, log_area_ratio, iou,
+                          distance, angle, ph, pw, oh, ow]
 
         return spatial
 
@@ -400,9 +396,7 @@ def train_val_split(
     val_ratio: float = 0.2,
     seed: int = 42,
 ) -> Tuple[List[str], List[str]]:
-    """
-    Split video IDs into train/val, stratified by action type from folder name.
-    """
+    """Split video IDs into train/val, stratified by action type."""
     import random as _random
     rng = _random.Random(seed)
 

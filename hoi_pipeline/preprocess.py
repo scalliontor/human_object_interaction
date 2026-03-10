@@ -1,190 +1,219 @@
 """
-Preprocessing: Extract MediaPipe right hand landmarks + velocity from videos.
+Preprocessing V2: YOLO Pose (full body) + Grounding DINO (object detection).
 
-Uses MediaPipe Tasks API (v0.10+) with HandLandmarker.
+Extracts:
+  - Body pose: 17 COCO keypoints + velocity via YOLO Pose
+  - Object bbox: text-guided detection via Grounding DINO
+  - Person bbox: from YOLO Pose detection
 
 Saves per-video .npz with:
-  - landmarks: [T, 21, 3]  — (x, y, z) normalized coords
-  - velocity: [T, 21, 3]   — frame-to-frame delta
-  - confidence: [T]         — 1.0 if hand detected
-  - hand_bbox: [T, 4]      — hand bounding box (x1,y1,x2,y2) normalized
-  - frame_indices: [T]      — original frame indices
+  pose_landmarks:  [T, 17, 3]  (x, y, conf)
+  pose_velocity:   [T, 17, 3]
+  person_bbox:     [T, 4]      (x1, y1, x2, y2 normalized)
+  person_conf:     [T]
+  object_bbox:     [T, 4]
+  object_conf:     [T]
 
 Usage:
-    python -m hoi_pipeline.preprocess --data_root ./Training \\
-        --anno_root ./annotations/Training --output_dir ./preprocessed
+    python3 -m hoi_pipeline.preprocess \
+        --data_root ./Training \
+        --anno_root ./annotations/Training \
+        --output_dir ./preprocessed_v2
 """
 import os
+import sys
 import json
+import glob
 import argparse
 import numpy as np
 import cv2
-import mediapipe as mp
-from mediapipe.tasks.python import BaseOptions, vision
-from typing import Optional, Tuple
+import torch
 
 
-# Path to the hand_landmarker.task model file
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "hand_landmarker.task")
+def load_yolo_pose_model(model_name: str = "yolo11n-pose.pt"):
+    """Load YOLO Pose model."""
+    from ultralytics import YOLO
+    model = YOLO(model_name)
+    return model
 
 
-def extract_right_hand_landmarks(
-    video_path: str,
-    crop_padding: float = 0.3,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def load_grounding_dino(model_id: str = "IDEA-Research/grounding-dino-tiny", device: str = "cpu"):
+    """Load Grounding DINO model from HuggingFace transformers."""
+    from transformers import AutoProcessor, AutoModelForZeroShotObjectDetection
+
+    processor = AutoProcessor.from_pretrained(model_id)
+    model = AutoModelForZeroShotObjectDetection.from_pretrained(model_id).to(device)
+    model.eval()
+    return processor, model
+
+
+def detect_object_gdino(frame_rgb, processor, model, text_prompt, device="cpu",
+                         box_threshold=0.25, text_threshold=0.2):
     """
-    Extract right hand landmarks from a video using MediaPipe HandLandmarker (Tasks API).
+    Run Grounding DINO on a single frame with a text prompt.
+    Returns (bbox [x1,y1,x2,y2] normalized, confidence) or (None, 0.0).
+    """
+    from PIL import Image
+
+    h, w = frame_rgb.shape[:2]
+    pil_image = Image.fromarray(frame_rgb)
+
+    inputs = processor(images=pil_image, text=text_prompt, return_tensors="pt").to(device)
+
+    with torch.no_grad():
+        outputs = model(**inputs)
+
+    results = processor.post_process_grounded_object_detection(
+        outputs,
+        inputs.input_ids,
+        box_threshold=box_threshold,
+        text_threshold=text_threshold,
+        target_sizes=[(h, w)],
+    )[0]
+
+    if len(results["scores"]) == 0:
+        return None, 0.0
+
+    # Take highest confidence detection
+    best_idx = results["scores"].argmax().item()
+    bbox = results["boxes"][best_idx].cpu().numpy()  # [x1, y1, x2, y2] in pixels
+    conf = results["scores"][best_idx].item()
+
+    # Normalize
+    bbox_norm = np.array([bbox[0] / w, bbox[1] / h, bbox[2] / w, bbox[3] / h], dtype=np.float32)
+    return bbox_norm, conf
+
+
+def extract_pose_and_object(
+    video_path: str,
+    yolo_model,
+    gdino_processor,
+    gdino_model,
+    object_prompts: dict,
+    gdino_device: str = "cpu",
+    sample_rate: int = 1,
+):
+    """
+    Extract body pose (YOLO) and object bbox (Grounding DINO) from video.
 
     Returns:
-        landmarks: [T, 21, 3] — (x, y, z) normalized coords
-        velocity: [T, 21, 3] — frame-to-frame delta
-        confidence: [T] — 1.0 if hand detected
-        hand_bbox: [T, 4] — hand bounding box (x1, y1, x2, y2) normalized, padded
+        pose_landmarks: [T, 17, 3]
+        pose_velocity:  [T, 17, 3]
+        person_bbox:    [T, 4]
+        person_conf:    [T]
+        object_bbox:    [T, 4]
+        object_conf:    [T]
     """
-    # Create HandLandmarker
-    options = vision.HandLandmarkerOptions(
-        base_options=BaseOptions(model_asset_path=MODEL_PATH),
-        running_mode=vision.RunningMode.VIDEO,
-        num_hands=2,
-        min_hand_detection_confidence=0.1,
-        min_hand_presence_confidence=0.1,
-        min_tracking_confidence=0.1,
-    )
-
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise ValueError(f"Cannot open video: {video_path}")
 
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
 
-    landmarks_list = []
-    confidence_list = []
-    bbox_list = []
+    # Build combined text prompt for Grounding DINO
+    # Join all object descriptions
+    combined_prompt = ". ".join(object_prompts.values()) + "."
 
-    with vision.HandLandmarker.create_from_options(options) as landmarker:
-        frame_idx = 0
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
+    pose_list = []
+    person_bbox_list = []
+    person_conf_list = []
+    object_bbox_list = []
+    object_conf_list = []
 
-            # Convert BGR → RGB for MediaPipe
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
+    frame_idx = 0
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
 
-            # Process frame (VIDEO mode requires timestamp in ms)
-            timestamp_ms = int(frame_idx * 1000 / fps)
-            result = landmarker.detect_for_video(mp_image, timestamp_ms)
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        h, w = frame_rgb.shape[:2]
 
-            # Only take "Right" hand (never "Left").
-            detected_hand = None
-            if result.hand_landmarks and result.handedness:
-                for idx, h in enumerate(result.handedness):
-                    if h[0].category_name == "Right":
-                        detected_hand = result.hand_landmarks[idx]
-                        break
+        # ── YOLO Pose ──
+        results = yolo_model(frame_rgb, verbose=False, conf=0.3)
+        result = results[0]
 
-            if detected_hand is not None:
-                lm = np.array(
-                    [[p.x, p.y, p.z] for p in detected_hand],
-                    dtype=np.float32,
+        person_detected = False
+        kpts = np.zeros((17, 3), dtype=np.float32)
+        pbbox = np.zeros(4, dtype=np.float32)
+        pconf = 0.0
+
+        if result.keypoints is not None and len(result.keypoints) > 0:
+            # Take the person with highest confidence
+            if result.boxes is not None and len(result.boxes) > 0:
+                confs = result.boxes.conf.cpu().numpy()
+                best_person_idx = confs.argmax()
+                pconf = float(confs[best_person_idx])
+
+                # Keypoints [x, y, conf] normalized
+                kpts_data = result.keypoints[best_person_idx].data.cpu().numpy()[0]  # [17, 3]
+                # Normalize x, y to [0, 1]
+                kpts[:, 0] = kpts_data[:, 0] / w
+                kpts[:, 1] = kpts_data[:, 1] / h
+                kpts[:, 2] = kpts_data[:, 2]  # confidence
+
+                # Person bbox normalized
+                box = result.boxes[best_person_idx].xyxyn.cpu().numpy()[0]  # [x1,y1,x2,y2] normalized
+                pbbox = box.astype(np.float32)
+                person_detected = True
+
+        pose_list.append(kpts)
+        person_bbox_list.append(pbbox)
+        person_conf_list.append(pconf)
+
+        # ── Grounding DINO (object detection) ──
+        # Run every N frames for speed, interpolate between
+        obbox = np.zeros(4, dtype=np.float32)
+        oconf = 0.0
+
+        if frame_idx % 5 == 0:  # Run every 5 frames
+            # Try each object prompt, keep best
+            best_obj_conf = 0.0
+            best_obj_bbox = None
+            for obj_name, obj_desc in object_prompts.items():
+                bbox, conf = detect_object_gdino(
+                    frame_rgb, gdino_processor, gdino_model,
+                    obj_desc, gdino_device,
                 )
-                landmarks_list.append(lm)
-                confidence_list.append(1.0)
+                if conf > best_obj_conf:
+                    best_obj_conf = conf
+                    best_obj_bbox = bbox
 
-                # Compute hand bounding box with padding
-                xs = lm[:, 0]
-                ys = lm[:, 1]
-                x1, x2 = xs.min(), xs.max()
-                y1, y2 = ys.min(), ys.max()
-                w = x2 - x1
-                h = y2 - y1
-                cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
-                size = max(w, h) * (1 + crop_padding * 2)
-                x1_pad = max(0, cx - size / 2)
-                y1_pad = max(0, cy - size / 2)
-                x2_pad = min(1, cx + size / 2)
-                y2_pad = min(1, cy + size / 2)
-                bbox_list.append([x1_pad, y1_pad, x2_pad, y2_pad])
-            else:
-                landmarks_list.append(np.zeros((21, 3), dtype=np.float32))
-                confidence_list.append(0.0)
-                bbox_list.append([0.0, 0.0, 1.0, 1.0])
+            if best_obj_bbox is not None:
+                obbox = best_obj_bbox
+                oconf = best_obj_conf
 
-            frame_idx += 1
+        object_bbox_list.append(obbox)
+        object_conf_list.append(oconf)
+
+        frame_idx += 1
 
     cap.release()
 
-    landmarks = np.stack(landmarks_list, axis=0)  # [T, 21, 3]
-    confidence = np.array(confidence_list, dtype=np.float32)
-    hand_bbox = np.array(bbox_list, dtype=np.float32)  # [T, 4]
+    # Stack
+    pose_landmarks = np.stack(pose_list)       # [T, 17, 3]
+    person_bbox = np.stack(person_bbox_list)    # [T, 4]
+    person_conf = np.array(person_conf_list)    # [T]
+    object_bbox = np.stack(object_bbox_list)    # [T, 4]
+    object_conf = np.array(object_conf_list)    # [T]
 
-    # Compute velocity: v[t] = landmarks[t] - landmarks[t-1]
-    velocity = np.zeros_like(landmarks)
-    velocity[1:] = landmarks[1:] - landmarks[:-1]
-    for t in range(1, len(confidence)):
-        if confidence[t] < 0.5 or confidence[t - 1] < 0.5:
-            velocity[t] = 0.0
+    # Fill Grounding DINO gaps (every 5 frames) with nearest
+    nonzero_obj = np.where(object_conf > 0)[0]
+    if len(nonzero_obj) > 0:
+        for i in range(total_frames):
+            if i >= len(object_conf):
+                break
+            if object_conf[i] == 0.0:
+                # Find nearest detected frame
+                nearest_idx = nonzero_obj[np.abs(nonzero_obj - i).argmin()]
+                object_bbox[i] = object_bbox[nearest_idx]
+                object_conf[i] = object_conf[nearest_idx] * 0.9  # slight discount
 
-    return landmarks, velocity, confidence, hand_bbox
+    # Compute velocity
+    pose_velocity = np.zeros_like(pose_landmarks)
+    pose_velocity[1:] = pose_landmarks[1:] - pose_landmarks[:-1]
 
-
-def find_video_path(
-    data_root: str,
-    video_id: str,
-    preferred_camera: str = "cam_832112070255",
-) -> Optional[str]:
-    """Find the RGB mp4 video file for a given video_id."""
-    rel_path = video_id.replace("Training/", "", 1) if video_id.startswith("Training/") else video_id
-    video_dir = os.path.join(data_root, rel_path)
-
-    if not os.path.isdir(video_dir):
-        return None
-
-    for cam_dir_name in sorted(os.listdir(video_dir)):
-        cam_path = os.path.join(video_dir, cam_dir_name)
-        if not os.path.isdir(cam_path):
-            continue
-        rgb_dir = os.path.join(cam_path, "rgb")
-        if not os.path.isdir(rgb_dir):
-            continue
-        mp4_files = [f for f in os.listdir(rgb_dir) if f.endswith(".mp4")]
-        if mp4_files and preferred_camera in cam_dir_name:
-            return os.path.join(rgb_dir, mp4_files[0])
-
-    for cam_dir_name in sorted(os.listdir(video_dir)):
-        cam_path = os.path.join(video_dir, cam_dir_name)
-        if not os.path.isdir(cam_path):
-            continue
-        rgb_dir = os.path.join(cam_path, "rgb")
-        if not os.path.isdir(rgb_dir):
-            continue
-        mp4_files = [f for f in os.listdir(rgb_dir) if f.endswith(".mp4")]
-        if mp4_files:
-            return os.path.join(rgb_dir, mp4_files[0])
-    return None
-
-
-def preprocess_single_video(video_path: str, output_path: str) -> dict:
-    """Process a single video: extract landmarks + velocity + bbox, save as .npz."""
-    landmarks, velocity, confidence, hand_bbox = extract_right_hand_landmarks(video_path)
-
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    np.savez_compressed(
-        output_path,
-        landmarks=landmarks,
-        velocity=velocity,
-        confidence=confidence,
-        hand_bbox=hand_bbox,
-        video_path=video_path,
-    )
-
-    return {
-        "frame_count": len(confidence),
-        "detection_rate": float(np.mean(confidence)),
-        "output_path": output_path,
-    }
+    return pose_landmarks, pose_velocity, person_bbox, person_conf, object_bbox, object_conf
 
 
 def preprocess_dataset(
@@ -192,85 +221,87 @@ def preprocess_dataset(
     anno_root: str,
     output_dir: str,
     preferred_camera: str = "cam_832112070255",
-    max_videos: int = -1,
 ):
     """Preprocess all annotated videos."""
-    os.makedirs(output_dir, exist_ok=True)
+    from .config import OBJECT_PROMPTS
 
-    anno_files = []
-    for root, dirs, files in os.walk(anno_root):
-        for f in files:
-            if f.endswith(".json"):
-                anno_files.append(os.path.join(root, f))
+    # Load models
+    print("Loading YOLO Pose model...")
+    yolo_model = load_yolo_pose_model()
 
-    anno_files.sort()
-    if max_videos > 0:
-        anno_files = anno_files[:max_videos]
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Loading Grounding DINO (device={device})...")
+    gdino_processor, gdino_model = load_grounding_dino(device=device)
 
-    print(f"Found {len(anno_files)} annotation files to process.")
+    # Find all annotated videos
+    anno_files = sorted(glob.glob(os.path.join(anno_root, "**", "*.json"), recursive=True))
+    print(f"Found {len(anno_files)} annotation files")
 
-    stats = {"total": 0, "success": 0, "failed": 0, "skipped": 0}
-
-    for i, anno_path in enumerate(anno_files):
-        stats["total"] += 1
-
-        with open(anno_path, "r") as fp:
-            anno = json.load(fp)
+    for idx, anno_path in enumerate(anno_files):
+        with open(anno_path) as f:
+            anno = json.load(f)
 
         video_id = anno.get("video_id", "")
         if not video_id:
-            print(f"  [{i+1}/{len(anno_files)}] SKIP (no video_id): {anno_path}")
-            stats["skipped"] += 1
             continue
 
         rel_id = video_id.replace("Training/", "", 1) if video_id.startswith("Training/") else video_id
-        npz_path = os.path.join(output_dir, rel_id + ".npz")
 
-        if os.path.exists(npz_path):
-            print(f"  [{i+1}/{len(anno_files)}] CACHED: {rel_id}")
-            stats["success"] += 1
+        # Check if already done
+        out_path = os.path.join(output_dir, rel_id + ".npz")
+        if os.path.exists(out_path):
+            print(f"  [{idx+1}/{len(anno_files)}] SKIP (exists): {rel_id}")
             continue
 
-        video_path = find_video_path(data_root, video_id, preferred_camera)
+        # Find video file
+        video_dir = os.path.join(data_root, rel_id)
+        video_path = None
+        if os.path.isdir(video_dir):
+            cam_dir = os.path.join(video_dir, preferred_camera, "rgb")
+            if os.path.isdir(cam_dir):
+                mp4s = [f for f in os.listdir(cam_dir) if f.endswith(".mp4")]
+                if mp4s:
+                    video_path = os.path.join(cam_dir, mp4s[0])
+
         if video_path is None:
-            print(f"  [{i+1}/{len(anno_files)}] NOT FOUND: {video_id}")
-            stats["failed"] += 1
+            print(f"  [{idx+1}/{len(anno_files)}] SKIP (no video): {rel_id}")
             continue
 
         try:
-            info = preprocess_single_video(video_path, npz_path)
-            print(
-                f"  [{i+1}/{len(anno_files)}] OK: {rel_id} "
-                f"({info['frame_count']} frames, {info['detection_rate']:.1%} hand detected)"
+            pose_lm, pose_vel, pbbox, pconf, obbox, oconf = extract_pose_and_object(
+                video_path, yolo_model, gdino_processor, gdino_model,
+                OBJECT_PROMPTS, device,
             )
-            stats["success"] += 1
-        except Exception as e:
-            print(f"  [{i+1}/{len(anno_files)}] ERROR: {rel_id} — {e}")
-            import traceback
-            traceback.print_exc()
-            stats["failed"] += 1
 
-    print(f"\nDone! {stats['success']}/{stats['total']} processed "
-          f"({stats['failed']} failed, {stats['skipped']} skipped)")
-    return stats
+            os.makedirs(os.path.dirname(out_path), exist_ok=True)
+            np.savez_compressed(
+                out_path,
+                pose_landmarks=pose_lm,
+                pose_velocity=pose_vel,
+                person_bbox=pbbox,
+                person_conf=pconf,
+                object_bbox=obbox,
+                object_conf=oconf,
+            )
+
+            person_rate = (pconf > 0.3).mean() * 100
+            obj_rate = (oconf > 0.2).mean() * 100
+            print(f"  [{idx+1}/{len(anno_files)}] OK: {rel_id} "
+                  f"({len(pconf)} frames, {person_rate:.1f}% person, {obj_rate:.1f}% object)")
+
+        except Exception as e:
+            print(f"  [{idx+1}/{len(anno_files)}] ERROR: {rel_id}: {e}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Preprocess: extract MediaPipe hand landmarks")
-    parser.add_argument("--data_root", type=str, required=True)
-    parser.add_argument("--anno_root", type=str, required=True)
-    parser.add_argument("--output_dir", type=str, required=True)
-    parser.add_argument("--preferred_camera", type=str, default="cam_832112070255")
-    parser.add_argument("--max_videos", type=int, default=-1)
+    parser = argparse.ArgumentParser(description="Preprocess V2: YOLO Pose + Grounding DINO")
+    parser.add_argument("--data_root", type=str, required=True, help="Training/ dir")
+    parser.add_argument("--anno_root", type=str, required=True, help="annotations/Training/ dir")
+    parser.add_argument("--output_dir", type=str, required=True, help="Output preprocessed dir")
+    parser.add_argument("--camera", type=str, default="cam_832112070255")
     args = parser.parse_args()
 
-    preprocess_dataset(
-        data_root=args.data_root,
-        anno_root=args.anno_root,
-        output_dir=args.output_dir,
-        preferred_camera=args.preferred_camera,
-        max_videos=args.max_videos,
-    )
+    preprocess_dataset(args.data_root, args.anno_root, args.output_dir, args.camera)
 
 
 if __name__ == "__main__":
