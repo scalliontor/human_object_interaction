@@ -77,20 +77,13 @@ def extract_right_hand_landmarks(
             timestamp_ms = int(frame_idx * 1000 / fps)
             result = landmarker.detect_for_video(mp_image, timestamp_ms)
 
-            # Take the first detected hand (any handedness).
-            # MediaPipe labels from camera perspective, so the person's
-            # right hand often appears as "Left". We take the most
-            # confident hand and treat it as the interaction hand.
+            # Only take "Right" hand (never "Left").
             detected_hand = None
             if result.hand_landmarks and result.handedness:
-                # Sort by confidence, take the best one
-                best_idx = 0
-                best_conf = 0.0
                 for idx, h in enumerate(result.handedness):
-                    if h[0].score > best_conf:
-                        best_conf = h[0].score
-                        best_idx = idx
-                detected_hand = result.hand_landmarks[best_idx]
+                    if h[0].category_name == "Right":
+                        detected_hand = result.hand_landmarks[idx]
+                        break
 
             if detected_hand is not None:
                 lm = np.array(
