@@ -148,7 +148,7 @@ def run_inference(
     print("Running model inference...")
     chunk_count = 0
 
-    for start in range(0, max(max_start, 0) + 1, chunk_stride * effective_stride):
+    for start in range(0, max(max_start, 0) + 1, 1 * effective_stride):  # stride=1 for dense inference
         frame_indices = [
             min(start + i * effective_stride, total_frames - 1)
             for i in range(T)
@@ -220,7 +220,30 @@ def run_inference(
     frame_cls_probs[mask] /= frame_counts[mask, np.newaxis]
     frame_antic_probs[mask] /= frame_counts[mask, np.newaxis]
 
-    print(f"  Processed {chunk_count} chunks")
+    # Fill uncovered frames (frame_counts==0) with nearest covered frame's predictions
+    covered_indices = np.where(mask)[0]
+    if len(covered_indices) > 0 and len(covered_indices) < total_frames:
+        from scipy.interpolate import interp1d
+        for c in range(len(PREDICATES)):
+            # Interpolate/extrapolate from covered frames
+            f_cls = interp1d(covered_indices, frame_cls_probs[covered_indices, c],
+                             kind='nearest', fill_value='extrapolate')
+            f_antic = interp1d(covered_indices, frame_antic_probs[covered_indices, c],
+                               kind='nearest', fill_value='extrapolate')
+            all_indices = np.arange(total_frames)
+            frame_cls_probs[:, c] = f_cls(all_indices)
+            frame_antic_probs[:, c] = f_antic(all_indices)
+
+    # Temporal smoothing — moving average to remove jitter
+    from scipy.ndimage import uniform_filter1d
+    smooth_window = 15  # ~0.5 second at 30fps
+    for c in range(len(PREDICATES)):
+        frame_cls_probs[:, c] = uniform_filter1d(frame_cls_probs[:, c],
+                                                  size=smooth_window, mode='nearest')
+        frame_antic_probs[:, c] = uniform_filter1d(frame_antic_probs[:, c],
+                                                    size=smooth_window, mode='nearest')
+
+    print(f"  Processed {chunk_count} chunks (smoothing window={smooth_window} frames)")
 
     # Write output video with overlay
     if output_path:
