@@ -1,0 +1,33 @@
+# Data & Models
+Training/
+annotations/
+preprocessed/
+checkpoints/
+*.npz
+*.mp4
+*.avi
+*.task
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.zip
+*.tar.gz
+annotation_tool/
