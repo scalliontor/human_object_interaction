@@ -174,11 +174,29 @@ class HOIChunkDataset(Dataset):
             else:
                 effective_stride = self.frame_stride
 
+            # Load confidence from preprocessed data for chunk filtering
+            npz_data = np.load(npz_path)
+            all_confidence = npz_data["confidence"]  # [total_T]
+
             for start in range(0, max(max_start, 0) + 1, self.chunk_stride * effective_stride):
                 frame_indices = [
                     min(start + i * effective_stride, n_frames - 1)
                     for i in range(self.chunk_length)
                 ]
+
+                # Filter: skip chunks with NO hand detected AND no active annotation
+                # Check if any frame in chunk has hand detected
+                chunk_conf = all_confidence[frame_indices] if max(frame_indices) < len(all_confidence) else np.zeros(len(frame_indices))
+                has_hand = np.any(chunk_conf > 0.5)
+
+                # Check if any frame has non-waiting annotation
+                chunk_labels = frame_labels[frame_indices]  # [T, 4]
+                # Active = any of commit/hesitate/abort (not just waiting)
+                has_active_annotation = np.any(chunk_labels[:, :3] > 0)  # commit/hesitate/abort
+
+                # Skip if NO hand detected AND no active annotation
+                if not has_hand and not has_active_annotation:
+                    continue
 
                 self.samples.append({
                     "npz_path": npz_path,

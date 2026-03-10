@@ -46,9 +46,9 @@ def extract_right_hand_landmarks(
         base_options=BaseOptions(model_asset_path=MODEL_PATH),
         running_mode=vision.RunningMode.VIDEO,
         num_hands=2,
-        min_hand_detection_confidence=0.2,
-        min_hand_presence_confidence=0.2,
-        min_tracking_confidence=0.2,
+        min_hand_detection_confidence=0.1,
+        min_hand_presence_confidence=0.1,
+        min_tracking_confidence=0.1,
     )
 
     cap = cv2.VideoCapture(video_path)
