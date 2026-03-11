@@ -180,14 +180,11 @@ class HOIChunkDataset(Dataset):
                     for i in range(self.chunk_length)
                 ]
 
-                # Filter: skip chunks with NO person detected AND no active annotation
+                # Filter: skip chunks with NO person detected
                 chunk_conf = all_person_conf[frame_indices] if max(frame_indices) < len(all_person_conf) else np.zeros(len(frame_indices))
                 has_person = np.any(chunk_conf > 0.3)
 
-                chunk_labels = frame_labels[frame_indices]
-                has_active_annotation = np.any(chunk_labels[:, :3] > 0)
-
-                if not has_person and not has_active_annotation:
+                if not has_person:
                     continue
 
                 self.samples.append({

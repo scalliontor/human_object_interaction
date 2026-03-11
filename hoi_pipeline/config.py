@@ -3,8 +3,8 @@ Configuration for the HOI Training Pipeline V2.
 All hyperparameters, paths, and constants are defined here.
 
 Architecture V2:
-  Stream 1: Body Pose → GCN (YOLO Pose, 17 COCO joints + velocity)
-  Stream 2: Object Crop 224×224 → DINOv3 ViT-S/16 (Grounding DINO bbox)
+  Stream 1: Body Pose → GCN (YOLOv26 Pose, 17 COCO joints + velocity)
+  Stream 2: Object Crop 224×224 → DINOv3 ViT-S/16 (custom YOLO object bbox)
   Stream 3: Context Full Frame 224×224 → DINOv3 ViT-S/16 (shared backbone)
   Stream 4: Spatial Features 12-dim → Spatial Bottleneck (person-object relative)
   → Pose-Query Cross-Attention Fusion
@@ -41,14 +41,14 @@ class PathConfig:
 
 @dataclass
 class ModelConfig:
-    """Model architecture configuration — V2 with YOLO Pose + Grounding DINO."""
+    """Model architecture configuration — V2 with YOLOv26 Pose + custom YOLO OD."""
     # ── DINOv3 ViT-S/16 backbone ──
     backbone_name: str = "vit_small_patch16_dinov3"
     backbone_frozen: bool = True
     backbone_dim: int = 384
 
-    # ── Body Pose (Stream 1: YOLO Pose 17 COCO keypoints) ──
-    num_joints: int = 17                # COCO body keypoints
+    # ── Body Pose (Stream 1: YOLOv26 Pose 17 COCO keypoints) ──
+    num_joints: int = 17
     joint_dim: int = 3                  # x, y, confidence per joint
     use_velocity: bool = True
     input_dim: int = 6                  # position (3) + velocity (3)
@@ -58,12 +58,12 @@ class ModelConfig:
     n_heads: int = 6
     n_cross_heads: int = 8
     n_temporal_layers: int = 3
-    ffn_dim: int = 1536                 # 4× d_model
+    ffn_dim: int = 1536
     dropout: float = 0.3
     spatial_dropout: float = 0.3
 
     # ── Spatial features (Stream 4: person-object relative) ──
-    spatial_dim: int = 12               # person-object relative features
+    spatial_dim: int = 12
     spatial_hidden: int = 64
 
     # ── GCN (Stream 1) ──
@@ -113,26 +113,21 @@ class TrainingConfig:
     use_amp: bool = True
     preferred_camera: str = "cam_832112070255"
 
-    # ── YOLO Pose ──
-    yolo_model: str = "yolo11n-pose.pt"
-    yolo_conf: float = 0.3              # Person detection confidence
+    # ── YOLOv26 Pose ──
+    yolo_pose_model: str = "yolo26x-pose.pt"
+    yolo_pose_conf: float = 0.3
 
-    # ── Grounding DINO ──
-    gdino_model: str = "IDEA-Research/grounding-dino-tiny"
-    gdino_box_threshold: float = 0.25
-    gdino_text_threshold: float = 0.2
+    # ── Custom YOLO Object Detection ──
+    yolo_obj_model: str = "best.pt"     # Custom trained: bottle, cake box, plastic bottle
+    yolo_obj_conf: float = 0.3
 
 
 # Predicate names matching annotation format
 PREDICATES = ["commit", "hesitate", "abort", "waiting"]
 PREDICATE_TO_IDX = {p: i for i, p in enumerate(PREDICATES)}
 
-# Object text prompts for Grounding DINO detection
-OBJECT_PROMPTS = {
-    "bottle2": "The cylindrical object held by the hand, featuring a black cap, a silver metallic body, and a teal base",
-    "bottle1": "The light blue, cylindrical plastic bottle",
-    "box": "The rectangular red and white snack box",
-}
+# Object class names from custom YOLO model
+OBJECT_CLASSES = {0: "bottle", 1: "cake box", 2: "plastic bottle"}
 
 # COCO Body Skeleton — 17 keypoints adjacency for GCN
 # 0:nose  1:L_eye  2:R_eye  3:L_ear  4:R_ear  5:L_shoulder  6:R_shoulder
