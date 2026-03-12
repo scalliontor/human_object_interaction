@@ -1,0 +1,1748 @@
+{
+  "version": "1.0",
+  "video_id": "Training/Person01/fully_abort_bottle_01/video012",
+  "video_path": "Training/Person01/fully_abort_bottle_01/video012/cam_832112070255/rgb/fully_abort_bottle_01_cam832112070255_rgb_20260305_125336.mp4",
+  "frame_count": 353,
+  "fps": 30,
+  "actions": [
+    "commit",
+    "hesitate",
+    "abort",
+    "waiting"
+  ],
+  "relation_instances": [
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "commit",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "waiting",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ],
+    [
+      {
+        "predicate": "abort",
+        "score": 1
+      }
+    ]
+  ]
+}

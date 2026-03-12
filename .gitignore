@@ -1,12 +1,20 @@
 # Data & Models
-Training/
-annotations/
+/Training/
+/annotations/
 preprocessed/
+preprocessed_v3/
 checkpoints/
+checkpoints_v3/
 *.npz
 *.mp4
 *.avi
 *.task
+*.pt
+*.pth
+
+# Dataset export — exclude videos and zip, keep annotations + README
+annotated_dataset_export/Training/
+annotated_dataset_export/*.zip
 
 # Python
 __pycache__/
